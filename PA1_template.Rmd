@@ -2,19 +2,92 @@
 
 
 ## Loading and preprocessing the data
+```{r loaddata, echo=TRUE, result="asis"}  
+setwd("e://courses//jh-dataexplore//ws_research//RepData_PeerAssessment1")  
+data <- read.csv("activity.csv")  
+# sum up the steps per date, and get the steps  
+step <- aggregate(steps ~ date, data, sum)$steps  
+step 
+```
 
+
+```{r Histogram-stepday, fig.width=7, fig.height=6}
+hist(step)  
+```
 
 
 ## What is mean total number of steps taken per day?
-
+mean and median is given below
+```{r echo=TRUE}
+mean(step)
+median(step)
+```
 
 
 ## What is the average daily activity pattern?
+```{r echo=TRUE}
+library(plyr)
+stepdate <- ddply(data, .(interval), summarize, steps = mean(steps, na.rm=T))
+```
 
+```{r timeSeris-dailyactivity, fig.width=7, fig.height=6}
+plot(stepdate$interval, stepdate$steps,type = "l", ylab="avg no of step", xlab="5-min interval", main="Time Series Plot")
+```
+
+interval that contains the maximum number of step
+```{r echo=TRUE}
+stepdate[stepdate$steps==max(stepdate$steps),]$interval
+```
 
 
 ## Imputing missing values
 
+```{r echo=TRUE}
+print( "number of rows with missing value")
+nrow(data[is.na(data),])
+```
+
+
+Strategy for filling in all of the missing values in the dataset:
+calcuate the median of each 5-min interval for the whole day.  and use this to
+fill in the missing value
+```{r echo=TRUE}
+data.nomiss <- data
+intMedian <- ddply(data.nomiss, .(interval), summarize, steps = median(steps, na.rm=T))
+data.nomiss[is.na(data.nomiss)]=intMedian$steps
+stepNomiss <- aggregate(steps ~ date, data.nomiss, sum)$steps  
+```
+
+### histogram with missing data estimated
+```{r histogram-adjustedData, fig.width=7, fig.height=6}
+hist(stepNomiss)  
+```
+
+
+### mean and median of dataset with missing data estimated?
+mean and median is given below
+```{r echo=TRUE}
+mean(stepNomiss);median(stepNomiss)
+print("This differ from values of the dataset that has missing values as follows")
+mean(step);median(step)
+```
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+method to create the appropriate dataframe required for plotting
+(1) add a column "day" to the dataframe default the value to "weekday"
+(2) change the value of this to weekend, if the date is either Saturday or Sunday
+(3) get the mean of each interval of the day and group it by weekday and weekend into another dataframe
+(4) use this dataframe (obtained in step3 ) for plotting
+```{r echo=TRUE}
+data.nomiss$day = "weekday"
+data.nomiss[weekdays(as.Date(data.nomiss$date, "%Y-%m-%d")) == "Sunday" | weekdays(as.Date(data.nomiss$date, "%Y-%m-%d")) == "Saturday", ]$day="weekend"
+stepdate.nomiss <- ddply(data.nomiss, .(interval, day), summarize, steps = mean(steps, na.rm=T))
+```
+
+use lattice to plot the graph
+```{r TimeSeries-Weekend, fig.width=9, fig.height=6}
+library(lattice)
+xyplot(steps ~ interval |day, data=stepdate.nomiss, type ="l", layout=c(1,2), ylab="Number of steps")
+```
